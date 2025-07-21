@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smartyoz - AI-Powered Hiring Platform Presentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 100%);
+            color: white;
+            overflow: hidden;
+            cursor: none;
+        }
+
+        /* Slide Container */
+        .presentation {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 4rem;
+            position: relative;
+            animation: slideIn 0.8s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Navigation Controls */
+        .nav-controls {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .nav-btn {
+            background: rgba(59, 130, 246, 0.8);
+            border: none;
+            color: white;
+            padding: 15px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 18px;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-btn:hover {
+            background: rgba(59, 130, 246, 1);
+            transform: scale(1.1);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Slide Counter */
+        .slide-counter {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
+            50% { transform: translateY(-30px) rotate(180deg); opacity: 0.7; }
+        }
+
+        /* Typography */
+        .slide h1 {
+            font-size: 4.5rem;
+            font-weight: 900;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        .slide h2 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            color: #3b82f6;
+            line-height: 1.2;
+        }
+
+        .slide h3 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #8b5cf6;
+        }
+
+        .slide p {
+            font-size: 1.5rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            opacity: 0.9;
+            max-width: 900px;
+        }
+
+        .slide ul {
+            font-size: 1.3rem;
+            text-align: left;
+            max-width: 800px;
+            margin: 2rem 0;
+        }
+
+        .slide li {
+            margin: 1rem 0;
+            padding-left: 1rem;
+            position: relative;
+        }
+
+        .slide li:before {
+            content: "→";
+            position: absolute;
+            left: -1rem;
+            color: #3b82f6;
+            font-weight: bold;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 3rem;
+            max-width: 1000px;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            background: rgba(59, 130, 246, 0.2);
+            transform: translateY(-10px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        /* Pipeline Visualization */
+        .pipeline {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 3rem 0;
+        }
+
+        .pipeline-step {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 15px;
+            padding: 1.5rem;
+            min-width: 150px;
+            position: relative;
+        }
+
+        .pipeline-step:not(:last-child)::after {
+            content: "→";
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2rem;
+            color: #3b82f6;
+        }
+
+        /* Stats Display */
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            max-width: 800px;
+            margin: 3rem 0;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 4rem;
+            font-weight: 900;
+            color: #3b82f6;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 1.2rem;
+            opacity: 0.8;
+            margin-top: 0.5rem;
+        }
+
+        /* Tech Stack */
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            max-width: 800px;
+            margin: 2rem 0;
+        }
+
+        .tech-item {
+            background: rgba(139, 92, 246, 0.1);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 15px;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Contact Info */
+        .contact-info {
+            font-size: 1.8rem;
+            margin-top: 3rem;
+        }
+
+        .contact-info a {
+            color: #3b82f6;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .contact-info a:hover {
+            color: #8b5cf6;
+        }
+
+        /* Fullscreen Button */
+        .fullscreen-btn {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: rgba(59, 130, 246, 0.8);
+            border: none;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .fullscreen-btn:hover {
+            background: rgba(59, 130, 246, 1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Animation -->
+    <div class="bg-animation" id="bgAnimation"></div>
+
+    <!-- Fullscreen Button -->
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">📺 Fullscreen</button>
+
+    <!-- Slide Counter -->
+    <div class="slide-counter">
+        <span id="currentSlide">1</span> / <span id="totalSlides">6</span>
+    </div>
+
+    <!-- Navigation Controls -->
+    <div class="nav-controls">
+        <button class="nav-btn" id="prevBtn" onclick="previousSlide()">‹</button>
+        <button class="nav-btn" id="nextBtn" onclick="nextSlide()">›</button>
+    </div>
+
+    <div class="presentation">
+        <!-- Slide 1: Title -->
+        <div class="slide active">
+            <h1>SmartyoZ</h1>
+            <p>AI-Powered Hiring Platform</p>
+            <p style="font-size: 1.2rem; margin-top: 3rem; opacity: 0.7;">
+                Revolutionizing Recruitment with Artificial Intelligence
+            </p>
+        </div>
+
+        <!-- Slide 2: Architecture Overview -->
+        <div class="slide">
+            <h2>System Architecture</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <span class="feature-icon">⚛️</span>
+                    <h3>Frontend</h3>
+                    <p>React 18 + TypeScript, Wouter routing, TanStack Query, Shadcn/UI</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">🔧</span>
+                    <h3>Backend</h3>
+                    <p>Node.js + Express, Drizzle ORM, PostgreSQL, Replit Auth</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">🤖</span>
+                    <h3>AI Integration</h3>
+                    <p>OpenAI GPT-4o, Whisper API, image analysis, text generation</p>
+                </div>
+                <div class="feature-card">
+                    <span class="feature-icon">📡</span>
+                    <h3>External APIs</h3>
+                    <p>SendGrid email, multi-platform job posting, file processing</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Data Flow Architecture -->
+        <div class="slide">
+            <h2>Data Flow & Pipeline</h2>
+            <div class="pipeline">
+                <div class="pipeline-step">
+                    <strong>Data Ingestion</strong>
+                    <p>Resume parsing, job APIs</p>
+                </div>
+                <div class="pipeline-step">
+                    <strong>AI Processing</strong>
+                    <p>GPT-4o analysis, scoring</p>
+                </div>
+                <div class="pipeline-step">
+                    <strong>Database Layer</strong>
+                    <p>PostgreSQL, Drizzle ORM</p>
+                </div>
+                <div class="pipeline-step">
+                    <strong>Real-time Updates</strong>
+                    <p>WebSocket, React Query</p>
+                </div>
+                <div class="pipeline-step">
+                    <strong>Multi-Platform Sync</strong>
+                    <p>API integrations, automation</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Core Technical Features -->
+        <div class="slide">
+            <h2>Technical Implementation</h2>
+            <ul>
+                <li><strong>AI-Powered Resume Analysis</strong> - Natural language processing with GPT-4o for skills extraction and job matching</li>
+                <li><strong>Multi-Modal Interview System</strong> - Video recording, audio transcription with Whisper API, real-time evaluation</li>
+                <li><strong>Automated Workflow Engine</strong> - State machine for candidate progression, email automation, status tracking</li>
+                <li><strong>Multi-Platform Integration</strong> - RESTful APIs for LinkedIn, Naukri, Indeed with rate limiting and error handling</li>
+                <li><strong>Real-Time Data Synchronization</strong> - WebSocket connections, optimistic updates, conflict resolution</li>
+                <li><strong>Scalable File Processing</strong> - Bulk upload handling, PDF/DOC parsing, concurrent processing</li>
+            </ul>
+        </div>
+
+        <!-- Slide 6: Technology Stack -->
+        <div class="slide">
+            <h2>Technology Stack</h2>
+            <div class="tech-stack">
+                <div class="tech-item">React 18<br>TypeScript</div>
+                <div class="tech-item">Node.js<br>Express</div>
+                <div class="tech-item">PostgreSQL<br>Drizzle ORM</div>
+                <div class="tech-item">OpenAI<br>GPT-4o</div>
+                <div class="tech-item">Tailwind CSS<br>Shadcn UI</div>
+                <div class="tech-item">SendGrid<br>Email API</div>
+                <div class="tech-item">Vite<br>Build Tool</div>
+                <div class="tech-item">Replit<br>Deployment</div>
+            </div>
+            <p>Modern, scalable architecture built for enterprise needs</p>
+        </div>
+
+        <!-- Slide 6: Implementation Details -->
+        <div class="slide">
+            <h2>Key Implementation Highlights</h2>
+            <ul>
+                <li><strong>Database Schema Design</strong> - Normalized PostgreSQL schema with proper indexing, foreign key constraints, and optimized queries</li>
+                <li><strong>API Architecture</strong> - RESTful design with middleware authentication, request validation using Zod schemas</li>
+                <li><strong>State Management</strong> - React Query for server state, React Context for UI state, optimistic updates</li>
+                <li><strong>Security Implementation</strong> - OpenID Connect authentication, session management, role-based access control</li>
+                <li><strong>File Processing Pipeline</strong> - Multer for uploads, AI-powered document parsing, concurrent batch processing</li>
+                <li><strong>Email Automation</strong> - SendGrid integration with template management, delivery tracking, bounce handling</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let currentSlideIndex = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        // Update slide counter
+        document.getElementById('totalSlides').textContent = totalSlides;
+
+        // Background animation
+        function createParticles() {
+            const animation = document.getElementById('bgAnimation');
+            
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.width = (Math.random() * 6 + 2) + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.animationDelay = Math.random() * 6 + 's';
+                animation.appendChild(particle);
+            }
+        }
+
+        function showSlide(index) {
+            slides.forEach((slide, i) => {
+                slide.classList.toggle('active', i === index);
+            });
+            
+            document.getElementById('currentSlide').textContent = index + 1;
+            document.getElementById('prevBtn').disabled = index === 0;
+            document.getElementById('nextBtn').disabled = index === totalSlides - 1;
+        }
+
+        function nextSlide() {
+            if (currentSlideIndex < totalSlides - 1) {
+                currentSlideIndex++;
+                showSlide(currentSlideIndex);
+            }
+        }
+
+        function previousSlide() {
+            if (currentSlideIndex > 0) {
+                currentSlideIndex--;
+                showSlide(currentSlideIndex);
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowRight':
+                case ' ':
+                    nextSlide();
+                    break;
+                case 'ArrowLeft':
+                    previousSlide();
+                    break;
+                case 'F11':
+                    e.preventDefault();
+                    toggleFullscreen();
+                    break;
+                case 'Escape':
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                    break;
+            }
+        });
+
+        // Mouse click navigation
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.nav-controls') || e.target.closest('.fullscreen-btn')) {
+                return;
+            }
+            
+            if (e.clientX > window.innerWidth / 2) {
+                nextSlide();
+            } else {
+                previousSlide();
+            }
+        });
+
+        // Initialize
+        createParticles();
+        showSlide(currentSlideIndex);
+
+        // Show cursor on mouse movement, hide after 3 seconds
+        let cursorTimeout;
+        document.addEventListener('mousemove', () => {
+            document.body.style.cursor = 'default';
+            clearTimeout(cursorTimeout);
+            cursorTimeout = setTimeout(() => {
+                document.body.style.cursor = 'none';
+            }, 3000);
+        });
+    </script>
+</body>
+</html>
