@@ -1,0 +1,179 @@
+
+Sent Example of JSON :
+{
+   "event" :  "request",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "subject" :  "Test subject",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000
+}
+Delivered Example of JSON :
+{
+   "event" :  "delivered",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-m-d h:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "subject" :  "Test subject",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+First opening Example of JSON :
+{
+   "event" :  "unique_opened",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-m-d h:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "subject" :  "Test subject",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Known open Example of JSON :
+{
+   "event" :  "opened",
+   "email" :  "frichris@hotmail.fr",
+   "id" :  1,
+   "date" :  "yyyy-m-d h:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "subject" :  "Test subject",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Clicked Example of JSON :
+{
+   "event" :  "click",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "link" :  "https://www.some-link.com",
+   "subject" :  "Test subject",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Soft Bounce Example of JSON :
+{
+   "event" :  "soft_bounce",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "reason" :  "<reason-for-deferred>",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Hard Bounce Example of JSON :
+{
+   "event" :  "hard_bounce",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "reason" :  "<reason-for-deferred>",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Invalid email Example of JSON :
+{
+   "event" :  "invalid_email",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "subject" :  "Test subject",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Deferred Example of JSON :
+{
+   "event" :  "deferred",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "subject" :  "Test subject",
+   "reason" :  "reason-for-deferred",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Complaint Example of JSON :
+{
+   "event" :  "spam",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+}
+Unsubscribed Example of JSON :
+{
+   "event" :  "unsubscribed",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "subject" :  "Test subject",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Blocked Example of JSON :
+{
+   "event" :  "blocked",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "subject" :  "Test subject",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Loaded by proxy Example of JSON :
+{
+   "event" :  "proxy_open",
+   "email" :  "frichris@hotmail.fr",
+   "id" :  1,
+   "date" :  "yyyy-m-d h:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "subject" :  "Test subject",
+   "tag" :  "<defined-tag>",
+   "sending_ip" :  "xxx.xx.xxx.xx",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1
+}
+Error Example of JSON :
+{
+   "event" :  "error",
+   "email" :  "example@example.com",
+   "id" :  1,
+   "date" :  "yyyy-mm-dd hh:i:s",
+   "message-id" :  "<xxx@msgid.domain>",
+   "ts_epoch" :  1534486682000,
+   "template_id" :  1,
+   "tag" :  "<defined-tag>",
+}
