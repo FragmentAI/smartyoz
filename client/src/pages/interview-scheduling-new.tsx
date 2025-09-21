@@ -882,8 +882,8 @@ function SessionsTab({
             </Select>
             
             {selectedApplicationId && (() => {
-              // Find the interview for the selected application
-              const selectedInterview = rawInterviews.find((interview: any) => interview.applicationId === selectedApplicationId);
+              // Find the interview for the selected application using interviews data
+              const selectedInterview = interviews?.find((interview: any) => interview.applicationId === selectedApplicationId);
               const selectedCandidate = candidateApplications.find(app => app.applicationId === selectedApplicationId);
               
               // Only show AIInterviewLauncher if we found a matching interview
