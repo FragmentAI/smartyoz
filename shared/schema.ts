@@ -113,6 +113,7 @@ export const candidates = pgTable("candidates", {
   email: text("email").notNull().unique(),
   phone: text("phone"),
   resumeUrl: text("resume_url"),
+  resumeText: text("resume_text"), // Store extracted resume content as text
   skills: text("skills").array(),
   experience: integer("experience"), // years
   currentCTC: decimal("current_ctc"),

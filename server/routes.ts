@@ -2,7 +2,8 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+// Use local auth for development
+import { setupAuth, isAuthenticated } from "./localAuth";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
 import {
@@ -42,6 +43,7 @@ import { generateInterviewQuestions as generateAIQuestions, generateInterviewEva
 import { sendEmail } from "./sendgrid";
 import { sendInterviewSchedulingEmail } from "./email-webhook";
 import { smartAssistProcessor } from "./smart-assist";
+import { ResumeExtractor } from "./resume-extractor";
 
 
 
@@ -52,17 +54,8 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 const upload = multer({
-  dest: uploadDir,
+  storage: multer.memoryStorage(), // Store files in memory
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['.pdf', '.doc', '.docx'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only PDF, DOC, and DOCX files are allowed.'));
-    }
-  },
 });
 
 const audioUpload = multer({
@@ -176,6 +169,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating evaluation:", error);
       res.status(500).json({ message: "Failed to create evaluation" });
+    }
+  });
+
+  // Launch AI Interview - NEW EXTERNAL AI SYSTEM INTEGRATION
+  app.post('/api/interviews/:id/launch-ai-interview', isAuthenticated, checkPermission('interviews'), async (req: any, res) => {
+    try {
+      const interviewId = parseInt(req.params.id);
+      console.log('🚀 Launching AI interview for interview ID:', interviewId);
+
+      // Get interview details
+      const interview = await storage.getInterview(interviewId);
+      if (!interview) {
+        return res.status(404).json({ message: "Interview not found" });
+      }
+
+      // Get application details
+      const application = await storage.getApplication(interview.applicationId);
+      if (!application) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      // Get candidate details
+      const candidate = await storage.getCandidate(application.candidateId);
+      if (!candidate) {
+        return res.status(404).json({ message: "Candidate not found" });
+      }
+
+      // Get job details
+      const job = await storage.getJob(application.jobId);
+      if (!job) {
+        return res.status(404).json({ message: "Job not found" });
+      }
+
+      // Use the stored resume text directly from the candidate record
+      const resumeText = candidate.resumeText || `Resume for ${candidate.firstName} ${candidate.lastName}
+Email: ${candidate.email}
+Phone: ${candidate.phone || 'Not provided'}
+Skills: ${candidate.skills || 'Not specified'}
+Experience: ${candidate.experience || 'Not specified'}
+Education: ${candidate.education || 'Not specified'}`;
+
+
+      // Prepare job description
+      const jobDescription = job.description || `
+Position: ${job.title}
+Department: ${job.department}
+Location: ${job.location}
+Requirements: ${job.requirements || 'To be discussed during interview'}
+Responsibilities: ${job.responsibilities || 'Will be detailed during the interview process'}
+`;
+
+      // Prepare data for AI Interview system
+      const aiInterviewData = {
+        email: candidate.email,
+        resume: resumeText,
+        jobDescription: jobDescription,
+        candidateName: `${candidate.firstName} ${candidate.lastName}`,
+        positionName: job.title
+      };
+
+      console.log('📋 Prepared AI interview data:', {
+        candidateName: aiInterviewData.candidateName,
+        positionName: aiInterviewData.positionName,
+        email: aiInterviewData.email,
+        resumeLength: aiInterviewData.resume.length,
+        jobDescriptionLength: aiInterviewData.jobDescription.length
+      });
+
+      // Submit to external AI Interview system
+      const aiResponse = await fetch('https://ai-interview-36q0.onrender.com/api/ai-interview/submit-external-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(aiInterviewData),
+      });
+
+      if (!aiResponse.ok) {
+        throw new Error(`AI Interview API responded with status ${aiResponse.status}`);
+      }
+
+      const result = await aiResponse.json();
+
+      if (!result.success || !result.loginUrl) {
+        throw new Error(result.error || 'AI Interview system did not return a login URL');
+      }
+
+      console.log('✅ AI Interview system response:', result);
+
+      // Handle relative URLs by prepending the base URL
+      let finalLoginUrl = result.loginUrl;
+      if (result.loginUrl.startsWith('/')) {
+        finalLoginUrl = `https://ai-interview-36q0.onrender.com${result.loginUrl}`;
+        console.log('🔗 Converted relative URL to absolute:', finalLoginUrl);
+      }
+
+      // Update interview status to indicate AI interview was launched
+      await storage.updateInterview(interviewId, {
+        status: 'ai_interview_launched',
+        interviewLink: finalLoginUrl,
+        scheduledAt: new Date()
+      });
+
+      // Log the activity
+      console.log(`🎯 AI Interview launched for ${candidate.firstName} ${candidate.lastName} at ${finalLoginUrl}`);
+
+      res.json({
+        success: true,
+        loginUrl: finalLoginUrl,
+        message: 'AI Interview launched successfully'
+      });
+
+    } catch (error) {
+      console.error("❌ Error launching AI interview:", error);
+      res.status(500).json({ 
+        message: "Failed to launch AI interview",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
@@ -400,6 +511,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Candidate creation request body:", req.body);
       console.log("Has resume file:", !!req.file);
       
+      let resumeUrl: string | undefined = undefined;
+      let resumeText: string | undefined = undefined;
+      
+      if (req.file) {
+        console.log("Processing resume file in memory...");
+        
+        // 1. Extract text from the file buffer in memory
+        try {
+          const extractionResult = await ResumeExtractor.extractResumeText(req.file.buffer);
+          
+          if (!extractionResult.success || !extractionResult.text || extractionResult.text.trim().length === 0) {
+            throw new Error(extractionResult.error || "No text content could be extracted from the resume file.");
+          }
+          
+          resumeText = extractionResult.text;
+          console.log("Resume text extracted successfully, length:", resumeText.length);
+
+        } catch (extractError) {
+          console.error("Failed to extract resume text:", extractError);
+          return res.status(400).json({ 
+            success: false, 
+            error: `Resume text extraction failed: ${extractError.message}. Please ensure the file is a valid and non-corrupted PDF, DOC, or DOCX document.` 
+          });
+        }
+
+        // 2. Only if extraction is successful, save the file to disk
+        try {
+          const uniqueFilename = `${Date.now()}-${req.file.originalname}`;
+          const savePath = path.join(uploadDir, uniqueFilename);
+          fs.writeFileSync(savePath, req.file.buffer);
+          resumeUrl = `/uploads/${uniqueFilename}`;
+          console.log("Resume saved to disk:", resumeUrl);
+        } catch (saveError) {
+          console.error("Failed to save resume file to disk:", saveError);
+          // Even if saving fails, we can proceed since we have the text, but log a warning.
+          // Or, you could choose to fail the request here. For now, we'll just warn.
+          console.warn("Warning: Could not save the resume file, but proceeding with extracted text.");
+        }
+      }
+      
       const candidateData = insertCandidateSchema.parse({
         firstName: req.body.firstName,
         lastName: req.body.lastName,
@@ -415,19 +566,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expectedCTCText: req.body.expectedCTCText,
         noticePeriod: req.body.noticePeriod,
         willingToRelocate: req.body.willingToRelocate === 'true',
-        resumeUrl: req.file ? `/uploads/${req.file.filename}` : undefined,
+        resumeUrl: resumeUrl,
+        resumeText: resumeText,
         skills: req.body.skills ? req.body.skills.split(',').map((s: string) => s.trim()) : [],
         selectedJobId: req.body.selectedJobId ? parseInt(req.body.selectedJobId) : undefined,
       });
       
       console.log("Parsed candidate data:", candidateData);
       
-      // Remove selectedJobId from candidate data before creating candidate
       const { selectedJobId, ...candidateOnlyData } = candidateData;
       const candidate = await storage.createCandidate(candidateOnlyData);
       console.log("Candidate created successfully:", candidate);
       
-      // If selectedJobId was provided, create application
       if (selectedJobId) {
         console.log("Creating application for job:", selectedJobId);
         try {
@@ -436,22 +586,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             jobId: selectedJobId,
             status: "applied"
           };
-          console.log("Application data:", applicationData);
-          
           const application = await storage.createApplication(applicationData);
           console.log("Application created successfully:", application);
-          
-          // Calculate match score
-          try {
-            const candidate_details = await storage.getCandidate(candidate.id);
-            const job_details = await storage.getJob(selectedJobId);
-            
-            if (candidate_details && job_details) {
-              console.log("Will calculate match score via separate endpoint");
-            }
-          } catch (matchError) {
-            console.error("Error with match calculation setup:", matchError);
-          }
         } catch (appError) {
           console.error("Error creating application:", appError);
         }
@@ -461,14 +597,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating candidate:", error);
       
-      // Handle duplicate email error
       if (error.code === '23505' && error.constraint === 'candidates_email_unique') {
         return res.status(400).json({ 
           message: "A candidate with this email address already exists" 
         });
       }
       
-      // Handle validation errors
       if (error.errors) {
         return res.status(400).json({ 
           message: "Validation failed", 
@@ -1929,7 +2063,7 @@ Smartyoz Hiring Team
       }
 
       // Generate meeting URL for the interview
-      const meetingUrl = `${process.env.REPLIT_DOMAINS}/interview-session/${interviewId}`;
+      const meetingUrl = `${process.env.BASE_URL || 'http://localhost:5000'}/interview-session/${interviewId}`;
       
       // Update interview with meeting URL
       await storage.updateInterview(interviewId, { meetingUrl });
@@ -3099,7 +3233,7 @@ Chennai, India
     try {
       const { to, interviewLink, candidateName, jobTitle, department, scheduledTime } = req.body;
       
-      const interviewLinkUrl = interviewLink || `https://smartyoz-12934.replit.app/interview/demo-token-${Date.now()}`;
+      const interviewLinkUrl = interviewLink || `${process.env.BASE_URL || 'http://localhost:5000'}/interview/demo-token-${Date.now()}`;
       const candidateFullName = candidateName || 'Test Candidate';
       const position = jobTitle || 'Test Position';
       const dept = department || 'Test Department';
@@ -4816,7 +4950,7 @@ async function parseExcelAndCreateCandidates(filePath: string, driveSessionId: n
 async function sendDriveRegistrationEmails(candidates: any[], driveSession: any) {
   for (const candidate of candidates) {
     try {
-      const registrationLink = `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/drive/register/${candidate.registrationToken}`;
+      const registrationLink = `${process.env.BASE_URL || 'http://localhost:5000'}/drive/register/${candidate.registrationToken}`;
       
       const subject = `Registration for ${driveSession.name} - ${driveSession.type === 'campus' ? 'Campus Drive' : 'Walk-in Drive'}`;
       const content = `
@@ -4863,7 +4997,7 @@ Smartyoz Hiring Team
 }
 
 async function sendTestLinkEmail(candidate: any, testSession: any) {
-  const testLink = `${process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000'}/drive/test/${testSession.testToken}`;
+  const testLink = `${process.env.BASE_URL || 'http://localhost:5000'}/drive/test/${testSession.testToken}`;
   
   const subject = `Aptitude Test Link - ${candidate.name}`;
   const content = `
@@ -4928,7 +5062,7 @@ Smartyoz Hiring Team
 
 async function sendTechnicalTestInvitationEmail(candidate: any, driveSession: any, aptitudeScore: number, technicalToken: string) {
   const subject = `Round 2: Technical Test Invitation - Congratulations!`;
-  const testUrl = `https://${process.env.REPLIT_DOMAINS}/drive/test/${technicalToken}`;
+  const testUrl = `${process.env.BASE_URL || 'http://localhost:5000'}/drive/test/${technicalToken}`;
   
   const content = `
 Dear ${candidate.name},
@@ -5006,7 +5140,7 @@ async function createAIInterviewForCandidate(candidate: any, driveSession: any) 
       type: 'ai_video',
       scheduledDate: new Date(),
       duration: 30,
-      meetingUrl: `https://${process.env.REPLIT_DOMAINS}/interview-launcher`,
+      meetingUrl: `${process.env.BASE_URL || 'http://localhost:5000'}/interview-launcher`,
       notes: 'AI Video Interview - Drive Recruitment'
     });
     
@@ -5037,7 +5171,7 @@ async function createAIInterviewForCandidate(candidate: any, driveSession: any) 
 
 async function sendAIInterviewInvitationEmail(candidate: any, driveSession: any, interviewToken: string) {
   const subject = `Final Round: AI Video Interview - You're Almost There!`;
-  const interviewUrl = `https://${process.env.REPLIT_DOMAINS}/interview/${interviewToken}`;
+  const interviewUrl = `${process.env.BASE_URL || 'http://localhost:5000'}/interview/${interviewToken}`;
   
   const content = `
 Dear ${candidate.name},

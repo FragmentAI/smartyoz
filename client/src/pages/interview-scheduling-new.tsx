@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import CalendarGrid from "@/components/calendar/calendar-grid";
 import ResultsTable from "@/components/results/results-table-simple";
+import { AIInterviewLauncher } from "@/components/ai-interview-launcher";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -208,41 +209,7 @@ export default function IntegratedInterviews() {
     meetingUrl: interview.meetingUrl,
   }));
 
-  // Create interview session mutation for launcher
-  const createInterviewMutation = useMutation({
-    mutationFn: async (applicationId: number) => {
-      const response = await fetch('/api/interview-sessions/create-dev', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applicationId })
-      });
-      if (!response.ok) {
-        throw new Error('Failed to create interview session');
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setLocation(`/interview/${data.token}`);
-      toast({
-        title: "Interview Session Created",
-        description: "Redirecting to interview page...",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create interview session",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Handle interview launch
-  const handleLaunchInterview = () => {
-    if (selectedApplicationId) {
-      createInterviewMutation.mutate(selectedApplicationId);
-    }
-  };
+  // No longer need createInterviewMutation - using AI Interview Launcher instead
 
 
 
@@ -341,8 +308,6 @@ export default function IntegratedInterviews() {
                 candidateApplications={candidateApplications}
                 selectedApplicationId={selectedApplicationId}
                 setSelectedApplicationId={setSelectedApplicationId}
-                handleLaunchInterview={handleLaunchInterview}
-                createInterviewMutation={createInterviewMutation}
                 queryClient={queryClient}
               />
             </TabsContent>
@@ -746,8 +711,6 @@ function SessionsTab({
   candidateApplications,
   selectedApplicationId,
   setSelectedApplicationId,
-  handleLaunchInterview,
-  createInterviewMutation,
   queryClient 
 }: any) {
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
@@ -918,13 +881,13 @@ function SessionsTab({
               </SelectContent>
             </Select>
             
-            <Button 
-              onClick={handleLaunchInterview}
-              disabled={!selectedApplicationId || createInterviewMutation.isPending}
-              className="w-full"
-            >
-              {createInterviewMutation.isPending ? 'Creating...' : 'Launch Interview'}
-            </Button>
+            {selectedApplicationId && (
+              <AIInterviewLauncher 
+                interviewId={selectedApplicationId}
+                candidateName={candidateApplications.find(app => app.applicationId === selectedApplicationId)?.firstName + ' ' + candidateApplications.find(app => app.applicationId === selectedApplicationId)?.lastName || 'Unknown Candidate'}
+                positionName={candidateApplications.find(app => app.applicationId === selectedApplicationId)?.jobTitle || 'Unknown Position'}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

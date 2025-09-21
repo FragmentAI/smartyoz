@@ -1,9 +1,15 @@
 import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 import { storage } from './storage';
 
-// Initialize OpenAI - the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+// Initialize OpenAI for intent analysis and general queries
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY 
+});
+
+// Initialize Anthropic Claude for job description generation
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 interface ActionItem {
@@ -19,6 +25,13 @@ export class SmartAssistProcessor {
     if (!process.env.OPENAI_API_KEY) {
       return {
         message: "AI features are currently unavailable. Please configure the OpenAI API key in Settings.",
+        actions: []
+      };
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return {
+        message: "Job description generation unavailable. Please configure the Anthropic API key in Settings.",
         actions: []
       };
     }
@@ -487,26 +500,31 @@ Provide helpful, contextual responses based on current platform data. Be specifi
 
   private async generateJobDescription(role: string, level: string, department: string): Promise<string> {
     try {
-      const prompt = `Create a comprehensive job description for a ${level} ${role} position in the ${department} department. Include:
-      
-      1. Job Overview (2-3 sentences)
-      2. Key Responsibilities (5-7 bullet points)
-      3. Required Skills & Qualifications
-      4. Preferred Qualifications
-      5. What We Offer
+      console.log(`Generating JD for ${level} ${role} in ${department} using Claude...`);
+      const prompt = `Create a detailed, professional job description for a ${level}-level "${role}" position in the ${department} department. Include sections for Responsibilities, Requirements, and Preferred Qualifications.`;
 
-      Make it professional, engaging, and specific to the role level.`;
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await anthropic.messages.create({
+        model: "claude-3-opus-20240229",
+        max_tokens: 1024,
         messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
-        max_tokens: 1000
       });
 
-      return response.choices[0].message.content || `We are seeking a talented ${level} ${role} to join our ${department} team.`;
+      // Ensure the response content is a string
+      if (response.content && response.content.length > 0 && response.content[0].type === 'text') {
+        return response.content[0].text;
+      }
+      
+      throw new Error('Invalid response format from Claude API');
+
     } catch (error) {
-      return `We are seeking a talented ${level} ${role} to join our ${department} team. This role involves working with cutting-edge technologies and contributing to innovative projects.`;
+      console.error('Error generating job description with Claude:', error);
+      // Fallback to a simple template if Claude fails
+      return `Job Description for ${role} (${level})
+Department: ${department}
+Responsibilities:
+- Key responsibilities for this role.
+Requirements:
+- Required skills and experience.`;
     }
   }
 

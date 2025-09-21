@@ -1,3 +1,7 @@
+// Load environment variables first
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -60,21 +64,29 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('app.get("env"):', app.get("env"));
+  
+  // Trim NODE_ENV to handle Windows trailing spaces
+  const nodeEnv = process.env.NODE_ENV?.trim();
+  console.log('Trimmed NODE_ENV:', nodeEnv);
+  
+  if (nodeEnv === "development") {
+    console.log('Setting up Vite dev server...');
     await setupVite(app, server);
   } else {
+    console.log('Setting up static file serving...');
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // Port configuration for both development and production
+  const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+  const host = process.platform === 'win32' ? 'localhost' : '0.0.0.0';
+  
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`serving on http://${host}:${port}`);
   });
 })();
