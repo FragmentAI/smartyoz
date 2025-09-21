@@ -881,13 +881,31 @@ function SessionsTab({
               </SelectContent>
             </Select>
             
-            {selectedApplicationId && (
-              <AIInterviewLauncher 
-                interviewId={selectedApplicationId}
-                candidateName={candidateApplications.find(app => app.applicationId === selectedApplicationId)?.firstName + ' ' + candidateApplications.find(app => app.applicationId === selectedApplicationId)?.lastName || 'Unknown Candidate'}
-                positionName={candidateApplications.find(app => app.applicationId === selectedApplicationId)?.jobTitle || 'Unknown Position'}
-              />
-            )}
+            {selectedApplicationId && (() => {
+              // Find the interview for the selected application
+              const selectedInterview = rawInterviews.find((interview: any) => interview.applicationId === selectedApplicationId);
+              const selectedCandidate = candidateApplications.find(app => app.applicationId === selectedApplicationId);
+              
+              // Only show AIInterviewLauncher if we found a matching interview
+              if (selectedInterview && selectedCandidate) {
+                return (
+                  <AIInterviewLauncher 
+                    interviewId={selectedInterview.id}
+                    candidateName={`${selectedCandidate.firstName} ${selectedCandidate.lastName}`}
+                    positionName={selectedCandidate.jobTitle}
+                  />
+                );
+              }
+              
+              // If no interview found, show a message
+              return (
+                <div className="mt-4 p-4 border border-yellow-200 rounded-lg bg-yellow-50">
+                  <p className="text-yellow-800">
+                    No interview found for this application. Please create an interview first.
+                  </p>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
