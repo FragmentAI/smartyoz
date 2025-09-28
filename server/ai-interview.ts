@@ -1,8 +1,8 @@
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+// Using Claude 3.5 Sonnet model
+const claude = new Anthropic({
+  apiKey: process.env.CLAUDE_API_KEY,
 });
 
 interface InterviewQuestion {
@@ -55,25 +55,21 @@ ${customQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
 Generate ${additionalQuestionsNeeded} different questions that cover other important aspects.
 Return only the questions, one per line, without numbering.`;
 
-          const response = await openai.chat.completions.create({
-            model: "gpt-4o",
+          const response = await claude.messages.create({
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 500,
             messages: [
               {
-                role: "system",
-                content: "You are an expert HR interviewer. Generate professional interview questions that complement existing questions."
-              },
-              {
                 role: "user",
-                content: additionalPrompt
+                content: `You are an expert HR interviewer. Generate professional interview questions that complement existing questions.\n\n${additionalPrompt}`
               }
             ],
-            max_tokens: 500,
             temperature: 0.7
           });
 
-          const content = response.choices[0].message.content;
+          const content = response.content[0].type === 'text' ? response.content[0].text : null;
           if (content) {
-            const additionalQuestions = content.split('\n').filter(q => q.trim().length > 0);
+            const additionalQuestions = content.split('\n').filter((q: string) => q.trim().length > 0);
             questionsToUse.push(...additionalQuestions.slice(0, additionalQuestionsNeeded));
           }
         } catch (error) {
@@ -149,30 +145,26 @@ Interview Style: ${interviewStyle}
 Make questions natural and conversational, as if an AI interviewer is speaking them.
 Return only the questions, one per line, without numbering or formatting.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await claude.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 800,
       messages: [
         {
-          role: "system",
-          content: "You are an expert HR interviewer creating engaging, professional interview questions. Generate questions that feel natural when spoken by an AI interviewer."
-        },
-        {
           role: "user",
-          content: prompt
+          content: `You are an expert HR interviewer creating engaging, professional interview questions. Generate questions that feel natural when spoken by an AI interviewer.\n\n${prompt}`
         }
       ],
-      max_tokens: 800,
       temperature: 0.7
     });
 
-    const content = response.choices[0].message.content;
+    const content = response.content[0].type === 'text' ? response.content[0].text : null;
     if (!content) {
       throw new Error('No questions generated');
     }
 
-    return content.split('\n').filter(q => q.trim().length > 0);
+    return content.split('\n').filter((q: string) => q.trim().length > 0);
   } catch (error) {
-    console.error('OpenAI question generation failed:', error);
+    console.error('Claude question generation failed:', error);
     // Fallback to template questions
     return generateFallbackQuestions(job.title, numQuestions);
   }
@@ -206,31 +198,26 @@ Provide a JSON response with:
   "improvements": ["improvement1", "improvement2"]
 }`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await claude.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 500,
       messages: [
         {
-          role: "system",
-          content: "You are an expert interview evaluator. Provide fair, constructive feedback focusing on job-relevant skills and communication."
-        },
-        {
           role: "user",
-          content: prompt
+          content: `You are an expert interview evaluator. Provide fair, constructive feedback focusing on job-relevant skills and communication.\n\n${prompt}`
         }
       ],
-      response_format: { type: "json_object" },
-      max_tokens: 500,
       temperature: 0.3
     });
 
-    const content = response.choices[0].message.content;
+    const content = response.content[0].type === 'text' ? response.content[0].text : null;
     if (!content) {
       throw new Error('No evaluation generated');
     }
 
     return JSON.parse(content);
   } catch (error) {
-    console.error('OpenAI evaluation failed:', error);
+    console.error('Claude evaluation failed:', error);
     // Fallback evaluation
     return {
       score: 7,
@@ -256,26 +243,22 @@ Job Context: ${jobContext}
 If the answer is complete and doesn't warrant a follow-up, return "NONE".
 If a follow-up would be valuable, return only the follow-up question.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await claude.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 150,
       messages: [
         {
-          role: "system",
-          content: "You are an experienced interviewer who knows when to ask insightful follow-up questions to get deeper insights."
-        },
-        {
           role: "user",
-          content: prompt
+          content: `You are an experienced interviewer who knows when to ask insightful follow-up questions to get deeper insights.\n\n${prompt}`
         }
       ],
-      max_tokens: 150,
       temperature: 0.6
     });
 
-    const content = response.choices[0].message.content?.trim();
+    const content = response.content[0].type === 'text' ? response.content[0].text?.trim() : null;
     return content === "NONE" ? null : content || null;
   } catch (error) {
-    console.error('OpenAI follow-up generation failed:', error);
+    console.error('Claude follow-up generation failed:', error);
     return null;
   }
 }
@@ -346,31 +329,26 @@ Provide a JSON response with:
   "developmentAreas": ["area1", "area2"]
 }`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await claude.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 800,
       messages: [
         {
-          role: "system",
-          content: "You are an expert talent assessor providing fair, comprehensive interview evaluations for hiring decisions."
-        },
-        {
           role: "user",
-          content: prompt
+          content: `You are an expert talent assessor providing fair, comprehensive interview evaluations for hiring decisions.\n\n${prompt}`
         }
       ],
-      response_format: { type: "json_object" },
-      max_tokens: 800,
       temperature: 0.3
     });
 
-    const content = response.choices[0].message.content;
+    const content = response.content[0].type === 'text' ? response.content[0].text : null;
     if (!content) {
       throw new Error('No summary generated');
     }
 
     return JSON.parse(content);
   } catch (error) {
-    console.error('OpenAI summary generation failed:', error);
+    console.error('Claude summary generation failed:', error);
     // Fallback summary
     return {
       overallScore: 7,
@@ -431,15 +409,15 @@ Consider:
 - Overall interview performance
 `;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: [{ role: "user", content: evaluationPrompt }],
-      response_format: { type: "json_object" },
+    const response = await claude.messages.create({
+      model: "claude-3-5-sonnet-20241022",
       max_tokens: 1500,
+      messages: [{ role: "user", content: evaluationPrompt }],
       temperature: 0.2
     });
 
-    const evaluation = JSON.parse(response.choices[0].message.content || '{}');
+    const content = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    const evaluation = JSON.parse(content);
     
     return {
       overallScore: Math.min(100, Math.max(0, evaluation.overallScore || 70)),
@@ -488,12 +466,17 @@ export async function transcribeAudio(audioFilePath: string, originalName?: stri
     }
     
     console.log(`Transcribing audio file: ${tempFilePath}`);
-    const audioReadStream = fs.createReadStream(tempFilePath);
+    // Note: Audio transcription temporarily disabled since Claude doesn't support audio
+    // You may want to use a dedicated transcription service like AssemblyAI
+    throw new Error('Audio transcription not available with Claude - please implement alternative service');
 
+    /* Original OpenAI Whisper code - uncomment if you want to keep OpenAI for transcription:
+    const audioReadStream = fs.createReadStream(tempFilePath);
     const transcription = await openai.audio.transcriptions.create({
       file: audioReadStream,
       model: "whisper-1",
     });
+    */
 
     // Clean up temp file if we created one
     if (tempFilePath !== audioFilePath) {
@@ -505,8 +488,8 @@ export async function transcribeAudio(audioFilePath: string, originalName?: stri
     }
 
     return {
-      text: transcription.text,
-      duration: 0 // Whisper doesn't return duration in the current API
+      text: '', // Return empty text since transcription is disabled
+      duration: 0
     };
   } catch (error) {
     console.error('Audio transcription error:', error);

@@ -213,6 +213,66 @@ export const evaluations = pgTable("evaluations", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// AI Interview Sessions table
+export const aiInterviewSessions = pgTable("ai_interview_sessions", {
+  id: serial("id").primaryKey(),
+  interviewId: integer("interview_id").references(() => interviews.id),
+  sessionToken: varchar("session_token").unique(),
+  candidateEmail: varchar("candidate_email").notNull(),
+  status: text("status").default("active"), // 'active', 'completed', 'terminated'
+  totalQuestions: integer("total_questions").default(0),
+  answeredQuestions: integer("answered_questions").default(0),
+  currentQuestionIndex: integer("current_question_index").default(0),
+  sessionData: jsonb("session_data"), // Session configuration and metadata
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// AI QA Chunks table - Individual Q&A Evaluations
+export const aiQaChunks = pgTable("ai_qa_chunks", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id"), // References ai_interview_sessions.id but not enforced
+  questionNumber: integer("question_number").notNull(),
+  questionText: text("question_text").notNull(),
+  questionType: varchar("question_type"), // 'technical', 'behavioral', 'situational', 'general'
+  answerText: text("answer_text"),
+  claudeQuestionId: varchar("claude_question_id"),
+  claudeEvaluationId: varchar("claude_evaluation_id"),
+  scores: jsonb("scores"), // {technical_knowledge, communication, relevance, depth, problem_solving, overall}
+  reasoning: text("reasoning"), // AI's detailed explanation
+  strengths: text("strengths"), // Candidate strengths for this Q&A (changed from array)
+  improvements: text("improvements"), // Areas for improvement for this Q&A (changed from array)
+  nextQuestion: text("next_question"), // AI suggestions for follow-up questions
+  createdAt: timestamp("created_at").defaultNow(),
+  answeredAt: timestamp("answered_at"),
+});
+
+// AI Video Chunks table - Video interview segments
+export const aiVideoChunks = pgTable("ai_video_chunks", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").references(() => aiInterviewSessions.id),
+  chunkNumber: integer("chunk_number").notNull(),
+  videoUrl: text("video_url"),
+  transcriptText: text("transcript_text"),
+  analysisData: jsonb("analysis_data"), // AI analysis of video segment
+  emotions: jsonb("emotions"), // Emotion detection results
+  engagement: jsonb("engagement"), // Engagement metrics
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// AI Proxy Detection table - Security/proctoring
+export const aiProxyDetection = pgTable("ai_proxy_detection", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").references(() => aiInterviewSessions.id),
+  detectionType: varchar("detection_type"), // 'face_detection', 'multiple_faces', 'tab_switch', 'window_blur'
+  timestamp: timestamp("timestamp").defaultNow(),
+  confidence: decimal("confidence"), // Detection confidence score
+  metadata: jsonb("metadata"), // Additional detection data
+  severity: varchar("severity").default("low"), // 'low', 'medium', 'high'
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Job Offers table
 export const jobOffers = pgTable("job_offers", {
   id: serial("id").primaryKey(),
@@ -627,6 +687,37 @@ export const evaluationsRelations = relations(evaluations, ({ one }) => ({
   }),
 }));
 
+export const aiInterviewSessionsRelations = relations(aiInterviewSessions, ({ one, many }) => ({
+  interview: one(interviews, {
+    fields: [aiInterviewSessions.interviewId],
+    references: [interviews.id],
+  }),
+  qaChunks: many(aiQaChunks),
+  videoChunks: many(aiVideoChunks),
+  proxyDetections: many(aiProxyDetection),
+}));
+
+export const aiQaChunksRelations = relations(aiQaChunks, ({ one }) => ({
+  session: one(aiInterviewSessions, {
+    fields: [aiQaChunks.sessionId],
+    references: [aiInterviewSessions.id],
+  }),
+}));
+
+export const aiVideoChunksRelations = relations(aiVideoChunks, ({ one }) => ({
+  session: one(aiInterviewSessions, {
+    fields: [aiVideoChunks.sessionId],
+    references: [aiInterviewSessions.id],
+  }),
+}));
+
+export const aiProxyDetectionRelations = relations(aiProxyDetection, ({ one }) => ({
+  session: one(aiInterviewSessions, {
+    fields: [aiProxyDetection.sessionId],
+    references: [aiInterviewSessions.id],
+  }),
+}));
+
 export const bulkJobsRelations = relations(bulkJobs, ({ one, many }) => ({
   job: one(jobs, {
     fields: [bulkJobs.jobId],
@@ -987,3 +1078,9 @@ export type JobPlatformPosting = typeof jobPlatformPostings.$inferSelect;
 
 export type InsertPlatformApplication = z.infer<typeof insertPlatformApplicationSchema>;
 export type PlatformApplication = typeof platformApplications.$inferSelect;
+
+// AI Interview Types
+export type AiInterviewSession = typeof aiInterviewSessions.$inferSelect;
+export type AiQaChunk = typeof aiQaChunks.$inferSelect;
+export type AiVideoChunk = typeof aiVideoChunks.$inferSelect;
+export type AiProxyDetection = typeof aiProxyDetection.$inferSelect;

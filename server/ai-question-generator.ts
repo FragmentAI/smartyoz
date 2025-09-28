@@ -1,7 +1,7 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Using Claude 3.5 Sonnet model
+const claude = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 
 export interface QuestionGenerationRequest {
   testRound: number; // 1 for aptitude, 2 for technical
@@ -27,30 +27,26 @@ export async function generateMCPQuestions(
   request: QuestionGenerationRequest
 ): Promise<GeneratedQuestion[]> {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("OpenAI API key not configured");
+    if (!process.env.CLAUDE_API_KEY) {
+      throw new Error("Claude API key not configured");
     }
 
     const prompt = buildQuestionPrompt(request);
     
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await claude.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 1500,
       messages: [
         {
-          role: "system",
-          content: `You are an expert test creator specializing in ${request.testRound === 1 ? 'aptitude and general intelligence' : 'technical assessment'} questions. Create high-quality multiple choice questions that are fair, unbiased, and accurately assess the required skills.`
-        },
-        {
           role: "user",
-          content: prompt
+          content: `You are an expert test creator specializing in ${request.testRound === 1 ? 'aptitude and general intelligence' : 'technical assessment'} questions. Create high-quality multiple choice questions that are fair, unbiased, and accurately assess the required skills.\n\n${prompt}`
         }
       ],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-      max_tokens: 3000
+      temperature: 0.7
     });
 
-    const result = JSON.parse(response.choices[0].message.content || '{}');
+    const content = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    const result = JSON.parse(content);
     
     if (!result.questions || !Array.isArray(result.questions)) {
       throw new Error("Invalid response format from AI");

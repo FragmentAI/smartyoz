@@ -42,9 +42,27 @@ function MatchingScore({ candidate }: { candidate: CandidateWithApplication }) {
   const calculateMatchMutation = useMutation({
     mutationFn: async () => {
       if (!candidate.application?.id) throw new Error("No application found");
-      return apiRequest("POST", `/api/applications/${candidate.application.id}/calculate-match`);
+      console.log("🚀 FRONTEND: Starting match calculation for application:", candidate.application.id);
+      console.log("🎯 FRONTEND: Candidate data:", {
+        name: candidate.name,
+        skills: candidate.skills,
+        experience: candidate.experience,
+        position: candidate.position
+      });
+      
+      const response = await apiRequest("POST", `/api/applications/${candidate.application.id}/calculate-match`);
+      const result = await response.json(); // Parse the JSON from the response
+      console.log("📥 FRONTEND: Received match calculation result:", result);
+      return result;
     },
     onSuccess: (data) => {
+      console.log("✅ FRONTEND: Match calculation successful!", {
+        matchingScore: data.matchingScore,
+        skillsMatch: data.skillsMatch,
+        experienceMatch: data.experienceMatch,
+        analysis: data.analysis
+      });
+      
       toast({
         title: "Match Score Calculated",
         description: `Overall match: ${data.matchingScore}% (Skills: ${data.skillsMatch}%, Experience: ${data.experienceMatch}%)`,
@@ -52,6 +70,7 @@ function MatchingScore({ candidate }: { candidate: CandidateWithApplication }) {
       queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
     },
     onError: (error: any) => {
+      console.error("❌ FRONTEND: Match calculation failed:", error);
       toast({
         title: "Calculation Failed",
         description: error.message || "Failed to calculate matching score",
@@ -59,11 +78,20 @@ function MatchingScore({ candidate }: { candidate: CandidateWithApplication }) {
       });
     },
     onSettled: () => {
+      console.log("🏁 FRONTEND: Match calculation process completed");
       setIsCalculating(false);
     },
   });
 
   const handleCalculate = () => {
+    console.log("🎯 FRONTEND: User clicked calculate match button");
+    console.log("📊 FRONTEND: Current candidate application data:", {
+      applicationId: candidate.application?.id,
+      currentMatchingScore: candidate.application?.matchingScore,
+      currentSkillsMatch: candidate.application?.skillsMatch,
+      currentExperienceMatch: candidate.application?.experienceMatch
+    });
+    
     setIsCalculating(true);
     calculateMatchMutation.mutate();
   };
@@ -76,6 +104,18 @@ function MatchingScore({ candidate }: { candidate: CandidateWithApplication }) {
 
   if (matchingScore !== undefined && matchingScore !== null) {
     const score = parseFloat(matchingScore.toString());
+    const skillsScore = skillsMatch ? parseFloat(skillsMatch.toString()) : 0;
+    const experienceScore = experienceMatch ? parseFloat(experienceMatch.toString()) : 0;
+    
+    console.log("📊 FRONTEND: Displaying existing match scores:", {
+      candidateName: candidate.name,
+      applicationId: candidate.application?.id,
+      overallScore: score,
+      skillsScore,
+      experienceScore,
+      scoreColor: score >= 80 ? 'green' : score >= 60 ? 'yellow' : 'red'
+    });
+    
     const getScoreColor = (score: number) => {
       if (score >= 80) return "text-green-600 bg-green-50";
       if (score >= 60) return "text-yellow-600 bg-yellow-50";
@@ -90,7 +130,7 @@ function MatchingScore({ candidate }: { candidate: CandidateWithApplication }) {
         </div>
         {skillsMatch !== undefined && experienceMatch !== undefined && (
           <div className="text-xs text-gray-500">
-            Skills: {parseFloat(skillsMatch.toString()).toFixed(0)}% | Exp: {parseFloat(experienceMatch.toString()).toFixed(0)}%
+            Skills: {skillsScore.toFixed(0)}% | Exp: {experienceScore.toFixed(0)}%
           </div>
         )}
       </div>

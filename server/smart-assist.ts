@@ -1,15 +1,9 @@
-import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { storage } from './storage';
 
-// Initialize OpenAI for intent analysis and general queries
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY 
-});
-
-// Initialize Anthropic Claude for job description generation
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+// Initialize Claude for all AI operations
+const claude = new Anthropic({
+  apiKey: process.env.CLAUDE_API_KEY,
 });
 
 interface ActionItem {
@@ -22,9 +16,9 @@ interface ActionItem {
 export class SmartAssistProcessor {
   
   async processUserRequest(prompt: string): Promise<{ message: string; actions: ActionItem[] }> {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!process.env.CLAUDE_API_KEY) {
       return {
-        message: "AI features are currently unavailable. Please configure the OpenAI API key in Settings.",
+        message: "AI features are currently unavailable. Please configure the Claude API key in Settings.",
         actions: []
       };
     }
@@ -91,17 +85,17 @@ Examples:
 - "But i need teh number of candidates scheduled interview tomorrow" -> intent: schedule_interviews, parameters: {date: "tomorrow", action: "count"}
 - "How many interviews this week?" -> intent: generate_report, parameters: {type: "interviews", period: "week"}`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+    const response = await claude.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 500,
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt }
+        { role: "user", content: systemPrompt + "\n\n" + prompt }
       ],
-      response_format: { type: "json_object" },
       temperature: 0.3
     });
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+    const content = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    return JSON.parse(content);
   }
 
   private async executeAction(intent: any, originalPrompt: string): Promise<{ message: string; actions: ActionItem[] }> {
@@ -471,18 +465,18 @@ Platform capabilities include:
 
 Provide helpful, contextual responses based on current platform data. Be specific about numbers when relevant and guide users on actionable next steps.`;
 
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const response = await claude.messages.create({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 500,
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: prompt }
+          { role: "user", content: systemPrompt + "\n\n" + prompt }
         ],
-        temperature: 0.7,
-        max_tokens: 500
+        temperature: 0.7
       });
 
+      const content = response.content[0].type === 'text' ? response.content[0].text : "I'm here to help with your hiring needs. What would you like assistance with?";
       return {
-        message: response.choices[0].message.content || "I'm here to help with your hiring needs. What would you like assistance with?",
+        message: content,
         actions: [{
           id: 'general-help',
           type: 'report_generated',

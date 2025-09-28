@@ -31,6 +31,7 @@ import {
   driveCandidates,
   aptitudeQuestions,
   testSessions,
+  aiQaChunks,
 } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -331,9 +332,9 @@ Responsibilities: ${job.responsibilities || 'Will be detailed during the intervi
     try {
       const { title, department, workType, experienceLevel, skills, location, salaryMin, salaryMax } = req.body;
 
-      // Get OpenAI API key from organization settings
-      const openaiSetting = await storage.getOrganizationSetting('OPENAI_API_KEY');
-      const apiKey = openaiSetting?.value;
+      // Get Claude API key from organization settings or environment variable
+      const claudeSetting = await storage.getOrganizationSetting('CLAUDE_API_KEY');
+      const apiKey = claudeSetting?.value || process.env.CLAUDE_API_KEY;
 
       // Import the AI job generator
       const { generateJobDescription } = await import('./ai-job-generator');
@@ -683,58 +684,110 @@ Responsibilities: ${job.responsibilities || 'Will be detailed during the intervi
   app.post('/api/applications/:id/calculate-match', isAuthenticated, async (req: any, res) => {
     try {
       const applicationId = parseInt(req.params.id);
-      console.log("Calculating match for application:", applicationId);
+      console.log("\n🎯 ======== MATCH CALCULATION API ENDPOINT ========");
+      console.log("📋 Calculating match for application ID:", applicationId);
       
       const application = await storage.getApplication(applicationId);
       
       if (!application) {
-        console.log("Application not found:", applicationId);
+        console.log("❌ Application not found:", applicationId);
         return res.status(404).json({ message: "Application not found" });
       }
 
-      console.log("Found application:", application);
+      console.log("✅ Found application:", {
+        id: application.id,
+        candidateId: application.candidateId,
+        jobId: application.jobId,
+        appliedAt: application.appliedAt
+      });
       
       const candidate = await storage.getCandidate(application.candidateId);
       const job = await storage.getJob(application.jobId);
       
       if (!candidate || !job) {
+        console.log("❌ Missing data - Candidate:", !!candidate, "Job:", !!job);
         return res.status(404).json({ message: "Candidate or job not found" });
       }
 
-      // Get OpenAI API key from organization settings
-      const openaiSetting = await storage.getOrganizationSetting('OPENAI_API_KEY');
-      const apiKey = openaiSetting?.value;
+      console.log("👤 Candidate Data:", {
+        id: candidate.id,
+        name: candidate.name,
+        skills: candidate.skills,
+        experience: candidate.experience,
+        position: candidate.position,
+        hasResumeText: !!candidate.resumeText,
+        resumeTextLength: candidate.resumeText?.length || 0
+      });
+
+      console.log("💼 Job Data:", {
+        id: job.id,
+        title: job.title,
+        skills: job.skills,
+        experienceLevel: job.experienceLevel,
+        requirementsLength: job.requirements?.length || 0,
+        descriptionLength: job.description?.length || 0
+      });
+
+      // Get Claude API key from organization settings or environment variable
+      const claudeSetting = await storage.getOrganizationSetting('CLAUDE_API_KEY');
+      const apiKey = claudeSetting?.value || process.env.CLAUDE_API_KEY;
+      
+      console.log("🔑 API Key Status:", apiKey ? "✅ Available - Using Claude AI" : "❌ Not available - ERROR");
+      console.log("🔍 API Key Source:", claudeSetting?.value ? "Organization Settings" : process.env.CLAUDE_API_KEY ? "Environment Variable" : "Not Found");
+      
+      if (!apiKey) {
+        console.log("❌ Cannot proceed without Claude API key");
+        return res.status(400).json({ 
+          message: "Claude API key required for match calculation. Please configure your Claude API key in organization settings or environment variables." 
+        });
+      }
+      
+      const candidateProfile = {
+        skills: Array.isArray(candidate.skills) ? candidate.skills : [],
+        experience: candidate.experience || 0,
+        position: candidate.position || undefined,
+        resumeText: candidate.resumeText || undefined, // ✅ ADD RESUME TEXT!
+      };
+
+      const jobRequirements = {
+        title: job.title,
+        description: job.description || '',
+        requirements: job.requirements || '',
+        skills: job.skills || '',
+        experienceLevel: job.experienceLevel || 'Mid',
+      };
+
+      console.log("🚀 Calling calculateResumeJobMatch with processed data...");
       
       const matchResult = await calculateResumeJobMatch(
-        {
-          skills: Array.isArray(candidate.skills) ? candidate.skills : [],
-          experience: candidate.experience || 0,
-          position: candidate.position || undefined,
-        },
-        {
-          title: job.title,
-          description: job.description || '',
-          requirements: job.requirements || '',
-          skills: job.skills || '',
-          experienceLevel: job.experienceLevel || 'Mid',
-        },
+        candidateProfile,
+        jobRequirements,
         apiKey
       );
       
+      console.log("🎯 Match calculation completed! Result:", matchResult);
+      
       // Update application with matching scores
+      console.log("💾 Updating application with match scores...");
       await storage.updateApplication(applicationId, {
         matchingScore: matchResult.matchingScore.toString(),
         skillsMatch: matchResult.skillsMatch.toString(),
         experienceMatch: matchResult.experienceMatch.toString(),
       });
       
-      res.json({
+      const finalResponse = {
         ...matchResult,
         applicationId
-      });
+      };
+
+      console.log("📤 Sending final response to client:", finalResponse);
+      console.log("🏁 ======== MATCH CALCULATION COMPLETE ========\n");
+      
+      res.json(finalResponse);
       
     } catch (error) {
-      console.error("Error calculating match:", error);
+      console.error("❌ ERROR in match calculation API:", error);
+      console.error("Stack trace:", error.stack);
       res.status(500).json({ message: "Failed to calculate matching score" });
     }
   });
@@ -890,6 +943,53 @@ Responsibilities: ${job.responsibilities || 'Will be detailed during the intervi
     } catch (error) {
       console.error("Error creating evaluation:", error);
       res.status(400).json({ message: "Failed to create evaluation" });
+    }
+  });
+
+  // AI Q&A Chunks routes
+  app.get('/api/interviews/:interviewId/qa-chunks', isAuthenticated, async (req, res) => {
+    try {
+      const interviewId = parseInt(req.params.interviewId);
+      console.log('📊 Fetching Q&A chunks for interview:', interviewId);
+      
+      // For now, let's get all Q&A chunks and filter them by session if needed
+      // Since we know the table exists, let's query it directly
+      const allChunks = await db
+        .select()
+        .from(aiQaChunks)
+        .orderBy(aiQaChunks.questionNumber)
+        .limit(50); // Limit to prevent too much data
+      
+      console.log('📊 Found', allChunks.length, 'Q&A chunks total');
+      res.json(allChunks);
+    } catch (error) {
+      console.error("Error fetching Q&A chunks:", error);
+      res.status(500).json({ message: "Failed to fetch Q&A chunks" });
+    }
+  });
+
+  app.get('/api/ai-sessions/:sessionId/qa-chunks', isAuthenticated, async (req, res) => {
+    try {
+      const sessionId = parseInt(req.params.sessionId);
+      const qaChunks = await storage.getAiQaChunks({ sessionId });
+      res.json(qaChunks);
+    } catch (error) {
+      console.error("Error fetching Q&A chunks:", error);
+      res.status(500).json({ message: "Failed to fetch Q&A chunks" });
+    }
+  });
+
+  app.get('/api/ai-sessions', isAuthenticated, async (req, res) => {
+    try {
+      const { interviewId } = req.query;
+      const filters: { interviewId?: number } = {};
+      if (interviewId) filters.interviewId = parseInt(interviewId as string);
+      
+      const sessions = await storage.getAiInterviewSessions(filters);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching AI interview sessions:", error);
+      res.status(500).json({ message: "Failed to fetch AI interview sessions" });
     }
   });
 
@@ -1264,7 +1364,7 @@ Smartyoz Hiring Team
               let matchingResult;
               try {
                 console.log(`Starting AI matching for ${file.originalname}...`);
-                console.log('OpenAI API Key available:', !!process.env.OPENAI_API_KEY);
+                console.log('Claude API Key available:', !!process.env.CLAUDE_API_KEY);
                 
                 matchingResult = await calculateResumeJobMatch(
                   {
@@ -1279,7 +1379,7 @@ Smartyoz Hiring Team
                     skills: job.skills || '',
                     experienceLevel: job.experienceLevel
                   },
-                  process.env.OPENAI_API_KEY // Use AI matching with API key
+                  process.env.CLAUDE_API_KEY // Use AI matching with API key
                 );
                 console.log(`AI matching completed for ${file.originalname}:`, matchingResult);
               } catch (matchingError) {
@@ -2320,32 +2420,34 @@ Smartyoz Hiring Team
             feedback: 'Strong candidate with good technical knowledge and excellent communication skills. Shows enthusiasm and cultural fit.'
           };
 
-          // Try AI evaluation if OpenAI key is available
-          if (process.env.OPENAI_API_KEY) {
+          // Try AI evaluation if Claude key is available
+          if (process.env.CLAUDE_API_KEY) {
             try {
-              const { initializeOpenAI } = await import('./ai-job-generator');
-              const openai = initializeOpenAI(process.env.OPENAI_API_KEY);
+              const Anthropic = await import('@anthropic-ai/sdk');
+              const claude = new Anthropic.default({
+                apiKey: process.env.CLAUDE_API_KEY,
+              });
               
-              const response = await openai.chat.completions.create({
-                model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+              const response = await claude.messages.create({
+                model: "claude-3-5-sonnet-20241022",
+                max_tokens: 1000,
                 messages: [
-                  { role: "system", content: "You are an expert HR evaluator. Provide accurate, fair assessments." },
-                  { role: "user", content: evaluationPrompt }
+                  { role: "user", content: "You are an expert HR evaluator. Provide accurate, fair assessments.\n\n" + evaluationPrompt }
                 ],
-                response_format: { type: "json_object" }
+                temperature: 0.3
               });
 
-              const content = response.choices[0].message.content;
+              const content = response.content[0].type === 'text' ? response.content[0].text : null;
               if (!content) {
-                throw new Error('No content received from OpenAI');
+                throw new Error('No content received from Claude');
               }
 
               let aiEvaluation;
               try {
                 aiEvaluation = JSON.parse(content);
               } catch (parseError) {
-                console.error('Failed to parse OpenAI evaluation response as JSON:', content);
-                throw new Error('Invalid JSON response from OpenAI evaluation');
+                console.error('Failed to parse Claude evaluation response as JSON:', content);
+                throw new Error('Invalid JSON response from Claude evaluation');
               }
 
               evaluation = {

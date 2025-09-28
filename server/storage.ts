@@ -51,6 +51,18 @@ import {
   driveCandidates,
   aptitudeQuestions,
   testSessions,
+  aiInterviewSessions,
+  aiQaChunks,
+  aiVideoChunks,
+  aiProxyDetection,
+  type AiInterviewSession,
+  type InsertAiInterviewSession,
+  type AiQaChunk,
+  type InsertAiQaChunk,
+  type AiVideoChunk,
+  type InsertAiVideoChunk,
+  type AiProxyDetection,
+  type InsertAiProxyDetection,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte, lte, or, isNull } from "drizzle-orm";
@@ -103,6 +115,12 @@ export interface IStorage {
   // Evaluation operations
   createEvaluation(evaluation: InsertEvaluation): Promise<Evaluation>;
   getEvaluations(filters?: { jobId?: number; recommendation?: string }): Promise<(Evaluation & { interview: Interview & { application: Application & { job: Job; candidate: Candidate } } })[]>;
+  
+  // AI Interview operations
+  getAiInterviewSessions(filters?: { interviewId?: number; sessionToken?: string }): Promise<AiInterviewSession[]>;
+  getAiQaChunks(filters?: { sessionId?: number; interviewId?: number }): Promise<AiQaChunk[]>;
+  getAiVideoChunks(filters?: { sessionId?: number }): Promise<AiVideoChunk[]>;
+  getAiProxyDetections(filters?: { sessionId?: number }): Promise<AiProxyDetection[]>;
   
   // Bulk processing operations
   createBulkJob(bulkJob: InsertBulkJob): Promise<BulkJob>;
@@ -1354,6 +1372,52 @@ export class DatabaseStorage implements IStorage {
     // For now, return 0 as no new applications synced
     await this.updatePlatformConfig(platformConfigId, { lastSyncAt: new Date() });
     return 0;
+  }
+
+  // AI Interview methods
+  async getAiInterviewSessions(filters?: { interviewId?: number; sessionToken?: string }): Promise<AiInterviewSession[]> {
+    let query = db.select().from(aiInterviewSessions);
+    
+    if (filters?.interviewId) {
+      query = query.where(eq(aiInterviewSessions.interviewId, filters.interviewId));
+    }
+    if (filters?.sessionToken) {
+      query = query.where(eq(aiInterviewSessions.sessionToken, filters.sessionToken));
+    }
+    
+    return await query.orderBy(desc(aiInterviewSessions.createdAt));
+  }
+
+  async getAiQaChunks(filters?: { sessionId?: number; interviewId?: number }): Promise<AiQaChunk[]> {
+    let query = db.select().from(aiQaChunks);
+    
+    if (filters?.sessionId) {
+      query = query.where(eq(aiQaChunks.sessionId, filters.sessionId));
+    }
+    // If we need to filter by interviewId, we'd need to join with aiInterviewSessions
+    // For now, we'll just handle sessionId
+    
+    return await query.orderBy(aiQaChunks.questionNumber);
+  }
+
+  async getAiVideoChunks(filters?: { sessionId?: number }): Promise<AiVideoChunk[]> {
+    let query = db.select().from(aiVideoChunks);
+    
+    if (filters?.sessionId) {
+      query = query.where(eq(aiVideoChunks.sessionId, filters.sessionId));
+    }
+    
+    return await query.orderBy(aiVideoChunks.chunkNumber);
+  }
+
+  async getAiProxyDetections(filters?: { sessionId?: number }): Promise<AiProxyDetection[]> {
+    let query = db.select().from(aiProxyDetection);
+    
+    if (filters?.sessionId) {
+      query = query.where(eq(aiProxyDetection.sessionId, filters.sessionId));
+    }
+    
+    return await query.orderBy(desc(aiProxyDetection.createdAt));
   }
 }
 

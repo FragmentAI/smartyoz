@@ -13,7 +13,7 @@
     "setup": "npm run setup:local && npm run db:push"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.63.0",
+    "@anthropic-ai/sdk": "^0.63.1",
     "@aws-sdk/client-s3": "^3.891.0",
     "@aws-sdk/lib-storage": "^3.891.0",
     "@hookform/resolvers": "^3.10.0",

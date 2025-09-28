@@ -1,11 +1,11 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 
-let openai: OpenAI | null = null;
+let claude: Anthropic | null = null;
 
-// Function to initialize OpenAI client with provided API key
-function initializeOpenAI(apiKey: string) {
+// Function to initialize Claude client with provided API key
+function initializeClaude(apiKey: string) {
   if (apiKey) {
-    openai = new OpenAI({
+    claude = new Anthropic({
       apiKey: apiKey,
     });
     return true;
@@ -13,9 +13,9 @@ function initializeOpenAI(apiKey: string) {
   return false;
 }
 
-// Initialize OpenAI client if API key is available from environment
-if (process.env.OPENAI_API_KEY) {
-  initializeOpenAI(process.env.OPENAI_API_KEY);
+// Initialize Claude client if API key is available from environment
+if (process.env.CLAUDE_API_KEY) {
+  initializeClaude(process.env.CLAUDE_API_KEY);
 }
 
 export interface JobGenerationRequest {
@@ -39,13 +39,13 @@ export async function generateJobDescription(
   jobData: JobGenerationRequest, 
   apiKey?: string
 ): Promise<JobGenerationResponse> {
-  // Try to initialize OpenAI with provided API key
-  if (apiKey && !openai) {
-    initializeOpenAI(apiKey);
+  // Try to initialize Claude with provided API key
+  if (apiKey && !claude) {
+    initializeClaude(apiKey);
   }
   
-  // If OpenAI is not available, use template-based generation
-  if (!openai) {
+  // If Claude is not available, use template-based generation
+  if (!claude) {
     return generateTemplateBasedJD(jobData);
   }
 
@@ -76,24 +76,20 @@ Please generate:
 Format the response as JSON with three fields: "description", "requirements", and "benefits".
 Make it professional, engaging, and specific to the role and skills mentioned.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    const response = await claude.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 2000,
       messages: [
         {
-          role: "system",
-          content: "You are an expert HR professional and technical recruiter. Create compelling, professional job descriptions that attract top talent. Always respond with valid JSON containing description, requirements, and benefits fields."
-        },
-        {
           role: "user",
-          content: prompt
+          content: `You are an expert HR professional and technical recruiter. Create compelling, professional job descriptions that attract top talent. Always respond with valid JSON containing description, requirements, and benefits fields.\n\n${prompt}`
         }
       ],
-      response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 2000,
     });
 
-    const generatedContent = JSON.parse(response.choices[0].message.content || '{}');
+    const content = response.content[0].type === 'text' ? response.content[0].text : '{}';
+    const generatedContent = JSON.parse(content);
     
     return {
       description: generatedContent.description || generateTemplateBasedJD(jobData).description,
@@ -102,7 +98,7 @@ Make it professional, engaging, and specific to the role and skills mentioned.`;
     };
 
   } catch (error) {
-    console.error("OpenAI generation failed, falling back to template:", error);
+    console.error("Claude generation failed, falling back to template:", error);
     return generateTemplateBasedJD(jobData);
   }
 }

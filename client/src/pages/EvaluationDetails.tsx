@@ -23,6 +23,19 @@ export default function EvaluationDetails() {
     enabled: !!evaluationId
   });
 
+  // Fetch detailed Q&A chunks for this interview
+  const { data: qaChunks, isLoading: qaLoading } = useQuery({
+    queryKey: ['/api/interviews', evaluation?.interview?.id, 'qa-chunks'],
+    queryFn: async () => {
+      const response = await fetch(`/api/interviews/${evaluation.interview.id}/qa-chunks`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch Q&A chunks');
+      }
+      return response.json();
+    },
+    enabled: !!evaluation?.interview?.id
+  });
+
   const getRecommendationBadge = (recommendation: string) => {
     const normalizedRec = recommendation.toLowerCase();
     
@@ -195,8 +208,113 @@ export default function EvaluationDetails() {
           </CardContent>
         </Card>
 
-        {/* Interview Responses */}
-        {evaluation.interview.responses && (
+        {/* Detailed Q&A Analysis */}
+        {qaChunks && qaChunks.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Video className="h-5 w-5" />
+                Detailed Q&A Analysis ({qaChunks.length} questions)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {qaChunks
+                  .filter((chunk: any) => chunk.answerText) // Only show answered questions
+                  .sort((a: any, b: any) => a.questionNumber - b.questionNumber)
+                  .map((chunk: any, index: number) => (
+                  <div key={chunk.id} className="border rounded-lg p-4 bg-white">
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-gray-900">Question {chunk.questionNumber}</h4>
+                        <Badge variant="outline" className="text-xs">
+                          {chunk.questionType}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-600 italic mb-3">{chunk.questionText}</p>
+                    </div>
+                    
+                    <div className="bg-gray-50 rounded p-3 mb-4">
+                      <p className="text-sm text-gray-700">
+                        <strong>Candidate Response:</strong> {chunk.answerText}
+                      </p>
+                    </div>
+
+                    {/* AI Scores */}
+                    {chunk.scores && Object.keys(chunk.scores).length > 0 && (
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-gray-900 mb-2">AI Evaluation Scores</h5>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                          {Object.entries(chunk.scores).map(([key, value]: [string, any]) => (
+                            <div key={key} className="text-center">
+                              <div className={`text-lg font-bold ${getScoreColor(value * 100)}`}>
+                                {Math.round((value as number) * 100)}
+                              </div>
+                              <p className="text-xs text-gray-500 capitalize">
+                                {key.replace(/_/g, ' ')}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI Reasoning */}
+                    {chunk.reasoning && (
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-gray-900 mb-2">AI Analysis</h5>
+                        <div className="bg-blue-50 border-l-4 border-blue-400 p-3">
+                          <p className="text-sm text-gray-700">{chunk.reasoning}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Strengths and Improvements */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {chunk.strengths && chunk.strengths.length > 0 && (
+                        <div>
+                          <h5 className="text-sm font-medium text-green-700 mb-2">Strengths</h5>
+                          <ul className="text-sm text-gray-600 space-y-1">
+                            {chunk.strengths.map((strength: string, idx: number) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="text-green-500 mt-0.5">•</span>
+                                {strength}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {chunk.improvements && chunk.improvements.length > 0 && (
+                        <div>
+                          <h5 className="text-sm font-medium text-orange-700 mb-2">Areas for Improvement</h5>
+                          <ul className="text-sm text-gray-600 space-y-1">
+                            {chunk.improvements.map((improvement: string, idx: number) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="text-orange-500 mt-0.5">•</span>
+                                {improvement}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {qaLoading && (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-sm text-gray-500 mt-2">Loading detailed analysis...</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Interview Responses (Fallback if no Q&A chunks) */}
+        {evaluation.interview.responses && (!qaChunks || qaChunks.length === 0) && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
